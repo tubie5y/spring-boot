@@ -265,12 +265,34 @@ public class SpringApplication {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
+		/**
+		 * ResourceLoader:
+		 * 		- 加载资源的策略接口(e.. class path or file system resources)
+		 * 		- 如果该类不为空，后面会从它获取 ClassLoader，{@link SpringApplication#getClassLoader()}
+		 */
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		/**
+		 * 用工具类ClassUtils.isPresent()判断classpath是否存在web相关的全限定类名，去决定WebApplicationType枚举的类型[NONE | SERVLET | REACTIVE]
+ 		 */
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+		/**
+		 * getSpringFactoriesInstances(ApplicationContextInitializer.class):
+		 * 		这一步：加载classpath下所有的spring.factories的key/value到map缓存中，返回指定key的全限定类名的Set<String>, 且把该Set<String>实例化，排序之后返回
+		 *
+		 * 	setInitializers()：
+		 * 		- 从spring.factories 设置 本地的初始化器列表
+		 * 		- 这一步：将spring.factories中key=org.springframework.context.ApplicationContextInitializer，的实现类初始化之后，clone一份赋值给本地的变量
+		 */
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
+		/**
+		 * 这一步：将spring.factories中key=org.springframework.context.ApplicationListener，的实现类初始化之后，clone一份赋值给本地的变量
+		 */
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+		/**
+		 * TODO: 这一步没看懂
+		 */
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
@@ -296,29 +318,66 @@ public class SpringApplication {
 	 * @return a running {@link ApplicationContext}
 	 */
 	public ConfigurableApplicationContext run(String... args) {
+		/**
+		 * 用户监控
+		 */
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
+
 		ConfigurableApplicationContext context = null;
 		Collection<SpringBootExceptionReporter> exceptionReporters = new ArrayList<>();
+		/**
+		 * java properties设置：java.awt.headless
+		 */
 		configureHeadlessProperty();
+		/**
+		 * 通过spring.factories中的key=org.springframework.boot.SpringApplicationRunListener中的类来创建一个SpringApplicationRunListeners对象。
+		 * {@link SpringApplicationRunListener}s are loaded via the {@link SpringFactoriesLoader}
+		 *
+		 * SpringApplicationRunListener作用：
+		 * 		Listener for the {@link SpringApplication} {@code run} method.
+		 * 		对 SpringApplication.run()的相应生命周期方法的监听，通过event触发。
+		 */
 		SpringApplicationRunListeners listeners = getRunListeners(args);
+		/**
+		 * 发送 starting 事件
+		 * 		触发时机：Called immediately when the run method has first started. Can be used for very early initialization.
+		 */
 		listeners.starting();
 		try {
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
 			configureIgnoreBeanInfo(environment);
+			/**
+			 * 打印 banner
+			 */
 			Banner printedBanner = printBanner(environment);
 			context = createApplicationContext();
+			/**
+			 * {@link SpringFactoriesLoader}加载key=org.springframework.boot.SpringBootExceptionReporter, 异常打印器
+			 */
 			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
 			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
+			/**
+			 * 重要！！！
+			 */
 			refreshContext(context);
 			afterRefresh(context, applicationArguments);
 			stopWatch.stop();
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), stopWatch);
 			}
+
+			/**
+			 * 发送 started 事件
+			 * 		触发时机：The context has been refreshed and the application has started but
+			 * 	 	{@link CommandLineRunner CommandLineRunners} and {@link ApplicationRunner ApplicationRunners} have not been called.
+			 */
 			listeners.started(context);
+			/**
+			 * 调用：[ApplicationRunner & CommandLineRunner]
+			 */
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -327,6 +386,12 @@ public class SpringApplication {
 		}
 
 		try {
+			/**
+			 * 发送 running 事件
+			 * 		触发时机：Called immediately before the run method finishes, when the application context has
+			 * 	 	been refreshed and all {@link CommandLineRunner CommandLineRunners} and
+			 * 	 	{@link ApplicationRunner ApplicationRunners} have been called.
+			 */
 			listeners.running(context);
 		}
 		catch (Throwable ex) {
@@ -342,6 +407,10 @@ public class SpringApplication {
 		ConfigurableEnvironment environment = getOrCreateEnvironment();
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
+		/**
+		 * 发送 environmentPrepared 事件：
+		 * 		触发时机：Called once the environment has been prepared, but before the {@link ApplicationContext} has been created.
+		 */
 		listeners.environmentPrepared(environment);
 		bindToSpringApplication(environment);
 		if (!this.isCustomEnvironment) {
@@ -368,6 +437,11 @@ public class SpringApplication {
 		context.setEnvironment(environment);
 		postProcessApplicationContext(context);
 		applyInitializers(context);
+
+		/**
+		 * 发送 contextPrepared 事件
+		 * 		触发时机：Called once the {@link ApplicationContext} has been created and prepared, but before sources have been loaded.
+		 */
 		listeners.contextPrepared(context);
 		if (this.logStartupInfo) {
 			logStartupInfo(context.getParent() == null);
@@ -390,6 +464,10 @@ public class SpringApplication {
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
 		load(context, sources.toArray(new Object[0]));
+		/**
+		 * 发送contextLoaded事件
+		 * 		触发时机：Called once the application context has been loaded but before it has been refreshed.
+		 */
 		listeners.contextLoaded(context);
 	}
 
@@ -423,8 +501,22 @@ public class SpringApplication {
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
 		ClassLoader classLoader = getClassLoader();
 		// Use names and ensure unique to protect against duplicates
+		/**
+		 * SpringFactoriesLoader.loadFactoryNames(type, classLoader):
+		 * 		- 这一步会将classpath下的所有src\main\resources\META-INF\spring.factories中的key/value加载到map缓存，返回指定key的值：权限定类名(Set<String>)
+		 */
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
+		/**
+		 * 这一步会将获取到的全限定类名(String)Set集合，通过反射实例化为相应的对象
+		 */
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
+		/**
+		 * 排序
+		 * 	支持：
+		 * 		- Spring's{@link org.springframework.core.Ordered} interface
+		 *  	- spring的@Order注解
+		 *  	- javax的@Priority注解，{@link javax.annotation.Priority}
+		 */
 		AnnotationAwareOrderComparator.sort(instances);
 		return instances;
 	}
@@ -475,10 +567,16 @@ public class SpringApplication {
 	 */
 	protected void configureEnvironment(ConfigurableEnvironment environment, String[] args) {
 		if (this.addConversionService) {
+			/**
+			 * 添加 Spring Boot applications 默认的 converters and formatters
+			 */
 			ConversionService conversionService = ApplicationConversionService.getSharedInstance();
 			environment.setConversionService((ConfigurableConversionService) conversionService);
 		}
 		configurePropertySources(environment, args);
+		/**
+		 * 添加profiles
+		 */
 		configureProfiles(environment, args);
 	}
 
@@ -1234,6 +1332,9 @@ public class SpringApplication {
 	 * @return the running {@link ApplicationContext}
 	 */
 	public static ConfigurableApplicationContext run(Class<?>[] primarySources, String[] args) {
+		/**
+		 * 创建 SpringApplication 对象
+		 */
 		return new SpringApplication(primarySources).run(args);
 	}
 
