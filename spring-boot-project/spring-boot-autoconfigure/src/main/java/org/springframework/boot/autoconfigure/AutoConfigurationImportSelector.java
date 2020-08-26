@@ -43,6 +43,7 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.ResourceLoaderAware;
+import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DeferredImportSelector;
 import org.springframework.core.Ordered;
@@ -112,20 +113,51 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	/**
 	 * Return the {@link AutoConfigurationEntry} based on the {@link AnnotationMetadata}
 	 * of the importing {@link Configuration @Configuration} class.
-	 * @param annotationMetadata the annotation metadata of the configuration class
+	 * @param annotationMetadata the annotation metadata of the configuration class, 默认{@link org.springframework.core.type.StandardAnnotationMetadata}
 	 * @return the auto-configurations that should be imported
+	 *
+	 *
 	 */
 	protected AutoConfigurationEntry getAutoConfigurationEntry(AnnotationMetadata annotationMetadata) {
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
 		}
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
-		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+		/**
+		 * 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION} 加载所有 XxxAutoConfiguration 到 Map<String, List<String>>缓存，
+		 * List<String> configurations = Map<String, List<String>>.get("org.springframework.boot.autoconfigure.EnableAutoConfiguration");
+		 */
+		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes); // 127个
+		// 去重
 		configurations = removeDuplicates(configurations);
+		/**
+		 * 收集需要排除的全限定类名Set集合:
+		 * 		1. attributes.getStringArray("exclude")
+		 *   	2. attributes.getStringArray("excludeName")
+		 * 		3. {@link AutoConfigurationImportSelector#PROPERTY_NAME_AUTOCONFIGURE_EXCLUDE} {@code spring.autoconfigure.exclude} auto-configurations
+ 		 */
 		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
 		checkExcludedClasses(configurations, exclusions);
+		// 删除排除的配置，之后剩余23个
 		configurations.removeAll(exclusions);
+
+		/**
+		 * 加载Condition，并调用 filter()去过滤
+		 *
+		 * getConfigurationClassFilter()这一步：
+		 * 		从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION}加载并初始化3个{@link Condition}:
+		 * 			{@link org.springframework.boot.autoconfigure.condition.OnBeanCondition}
+		 * 			{@link org.springframework.boot.autoconfigure.condition.OnClassCondition}
+		 * 			{@link org.springframework.boot.autoconfigure.condition.OnWebApplicationCondition}
+		 */
 		configurations = getConfigurationClassFilter().filter(configurations);
+
+		/**
+		 * 1. 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION}加载并初始化 Listener
+		 * 	  key = org.springframework.boot.autoconfigure.AutoConfigurationImportListener
+		 *
+		 * 2. 逐一触发上面加载的监听器，并发送自动配置的类被导入时触发的事件对象
+		 */
 		fireAutoConfigurationImportEvents(configurations, exclusions);
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
@@ -148,6 +180,8 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	 * {@link #getAnnotationClass()}.
 	 * @param metadata the annotation metadata
 	 * @return annotation attributes
+	 *
+	 * 获取 {@link EnableAutoConfiguration @EnableAutoConfiguration}的属性
 	 */
 	protected AnnotationAttributes getAttributes(AnnotationMetadata metadata) {
 		String name = getAnnotationClass().getName();
@@ -166,6 +200,10 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	}
 
 	/**
+	 * 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION} 加载所有 XxxAutoConfiguration 到 Map<String, List<String>>缓存
+	 * 	给定的类型key= org.springframework.boot.autoconfigure.EnableAutoConfiguration:
+	 * 		List<String> valueStringList = Map<String, List<String>>.get(key)
+	 *
 	 * Return the auto-configuration class names that should be considered. By default
 	 * this method will load candidates using {@link SpringFactoriesLoader} with
 	 * {@link #getSpringFactoriesLoaderFactoryClass()}.
@@ -253,6 +291,12 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		return (excludes != null) ? Arrays.asList(excludes) : Collections.emptyList();
 	}
 
+	/**
+	 * 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION}加载并初始化3个{@link Condition}:
+	 * 		{@link org.springframework.boot.autoconfigure.condition.OnBeanCondition}
+	 * 		{@link org.springframework.boot.autoconfigure.condition.OnClassCondition}
+	 * 		{@link org.springframework.boot.autoconfigure.condition.OnWebApplicationCondition}
+	 */
 	protected List<AutoConfigurationImportFilter> getAutoConfigurationImportFilters() {
 		return SpringFactoriesLoader.loadFactories(AutoConfigurationImportFilter.class, this.beanClassLoader);
 	}
@@ -280,6 +324,10 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	private void fireAutoConfigurationImportEvents(List<String> configurations, Set<String> exclusions) {
 		List<AutoConfigurationImportListener> listeners = getAutoConfigurationImportListeners();
 		if (!listeners.isEmpty()) {
+			/**
+			 * AutoConfigurationImportEvent:
+			 * 		Event fired when auto-configuration classes are imported.(自动配置的类被导入时触发的事件对象)
+			 */
 			AutoConfigurationImportEvent event = new AutoConfigurationImportEvent(this, configurations, exclusions);
 			for (AutoConfigurationImportListener listener : listeners) {
 				invokeAwareMethods(listener);
@@ -288,6 +336,10 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		}
 	}
 
+	/**
+	 * 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION}加载并初始化 Listener
+	 * key = org.springframework.boot.autoconfigure.AutoConfigurationImportListener
+	 */
 	protected List<AutoConfigurationImportListener> getAutoConfigurationImportListeners() {
 		return SpringFactoriesLoader.loadFactories(AutoConfigurationImportListener.class, this.beanClassLoader);
 	}

@@ -75,6 +75,11 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  * @see AutoConfigureAfter
  * @see SpringBootApplication
  */
+
+/**
+ * @EnableAutoConfiguration: 开启 Spring 的自动装配功能
+ *
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
