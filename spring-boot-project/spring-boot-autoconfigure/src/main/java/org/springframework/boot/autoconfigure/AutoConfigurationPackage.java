@@ -25,6 +25,11 @@ import java.lang.annotation.Target;
 
 import org.springframework.context.annotation.Import;
 
+
+/**
+ * 该注解用来注册package的，当没有指定 basePackages or basePackageClasses时，被该注解标注的类所在的包将被注册。
+ */
+
 /**
  * Registers packages with {@link AutoConfigurationPackages}. When no {@link #basePackages
  * base packages} or {@link #basePackageClasses base package classes} are specified, the

@@ -92,6 +92,13 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 	private ConfigurationClassFilter configurationClassFilter;
 
+	/**
+	 * 通过实现 selectImports() 方法来导出 key = "org.springframework.boot.autoconfigure.EnableAutoConfiguration" 的 XXXAutoConfiguration 自动配置类
+	 * (最终通过 SpringFactoriesLoader.loadFactoryNames() 读取了 ClassPath 下面的 spring-boot-autoconfigure/META-INF/spring.factories 文件来获取所有导出类。)
+	 *
+	 * @return : 从 ClassPath下扫描所有的 META-INF/spring.factories 配置文件中的 key = "org.springframework.boot.autoconfigure.EnableAutoConfiguration"
+	 * 	的 XXXAutoConfiguration 自动配置类 , 然后经过一些处理(?)，返回符合条件的 XXXAutoConfiguration 自动配置类。
+	 */
 	@Override
 	public String[] selectImports(AnnotationMetadata annotationMetadata) {
 		if (!isEnabled(annotationMetadata)) {
@@ -201,7 +208,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 	/**
 	 * 从spring-boot-autoconfigure: {@link SpringFactoriesLoader#FACTORIES_RESOURCE_LOCATION} 加载所有 XxxAutoConfiguration 到 Map<String, List<String>>缓存
-	 * 	给定的类型key= org.springframework.boot.autoconfigure.EnableAutoConfiguration:
+	 * 并返回给定的类型key= org.springframework.boot.autoconfigure.EnableAutoConfiguration:
 	 * 		List<String> valueStringList = Map<String, List<String>>.get(key)
 	 *
 	 * Return the auto-configuration class names that should be considered. By default

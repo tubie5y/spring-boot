@@ -158,6 +158,18 @@ import org.springframework.web.context.support.StandardServletEnvironment;
  * @see #run(Class[], String[])
  * @see #SpringApplication(Class...)
  */
+
+/**
+ * SpringApplication 这个类应该算是 SpringBoot 框架 的“创新”产物了，原始的 Spring中并没有这个类，SpringApplication 里面封装了一套 Spring 应用的启动流程，
+ * 然而这对用户完全透明，因此我们上手 SpringBoot 时感觉简洁、轻量。
+ * 重点搞清楚两点 (搞清楚了这个，那么也就搞清楚了SpringBoot应用是如何运行起来的！)：
+ * 		1. SpringApplication 的构造过程:
+ * 			- {@link SpringApplication#SpringApplication(org.springframework.core.io.ResourceLoader, java.lang.Class[])}
+ *
+ * 		2. SpringApplication.run() 方法的流程:
+ * 			- {@link SpringApplication#run(java.lang.String...)}
+ * 			- src-debug/image/SpringApplication.run().spring boot启动流程图.png
+ */
 public class SpringApplication {
 
 	/**
@@ -274,24 +286,30 @@ public class SpringApplication {
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
 		/**
-		 * 用工具类ClassUtils.isPresent()判断classpath是否存在web相关的全限定类名，去决定WebApplicationType枚举的类型[NONE | SERVLET | REACTIVE]
+		 * 推断应用的类型：
+		 * 		用工具类ClassUtils.isPresent()判断classpath是否存在web相关的全限定类名，去决定WebApplicationType枚举的类型[NONE | SERVLET | REACTIVE],
+		 * 		从而决定创建的是 REACTIVE应用、SERVLET应用、NONE 三种中的某一种
  		 */
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
 		/**
-		 * getSpringFactoriesInstances(ApplicationContextInitializer.class):
-		 * 		这一步：加载classpath下所有的spring.factories的key/value到map缓存中，返回指定key的全限定类名的Set<String>, 且把该Set<String>实例化，排序之后返回
+		 * 从spring.factories 中实例化所有的 ApplicationContextInitializer, 且clone一份赋值给本地的变量
 		 *
-		 * 	setInitializers()：
-		 * 		- 从spring.factories 设置 本地的初始化器列表
-		 * 		- 这一步：将spring.factories中key=org.springframework.context.ApplicationContextInitializer，的实现类初始化之后，clone一份赋值给本地的变量
+		 * 		- getSpringFactoriesInstances(ApplicationContextInitializer.class):
+		 * 			- 这一步：使用 SpringFactoriesLoader查找并加载classpath下所有的 META-INF/spring.factories的key/value到map缓存中，
+		 * 		      返回指定 key = "org.springframework.context.ApplicationContextInitializer" 的全限定类名的Set<String>, 且把该Set<String>实例化，排序之后返回
+		 *
+		 * 		- setInitializers()：
+		 * 			- 从spring.factories 设置 本地的初始化器列表
+		 * 			- 这一步：将spring.factories中key=org.springframework.context.ApplicationContextInitializer，的实现类实例化之后，clone一份赋值给本地的变量: {@link SpringApplication#initializers}
 		 */
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 		/**
-		 * 这一步：将spring.factories中key=org.springframework.context.ApplicationListener，的实现类初始化之后，clone一份赋值给本地的变量
+		 * 使用 SpringFactoriesLoader查找并加载 classpath下 META-INF/spring.factories文件中的所有可用的 ApplicationListener
+		 * 		- 将spring.factories中key=org.springframework.context.ApplicationListener，的实现类实例化之后，clone一份赋值给本地的变量 {@link SpringApplication#listeners}
 		 */
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 		/**
-		 * TODO: 这一步没看懂
+		 * 推断并设置 main方法的定义类
 		 */
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
@@ -331,8 +349,9 @@ public class SpringApplication {
 		 */
 		configureHeadlessProperty();
 		/**
-		 * 通过spring.factories中的key=org.springframework.boot.SpringApplicationRunListener中的类来创建一个SpringApplicationRunListeners对象。
-		 * {@link SpringApplicationRunListener}s are loaded via the {@link SpringFactoriesLoader}
+		 * 这一步：
+		 * 		通过 {@link SpringFactoriesLoader} 加载 spring-boot/META-INF/spring.factories 文件中的 key=org.springframework.boot.SpringApplicationRunListener，
+		 * 		并创建 SpringApplicationRunListeners对象。
 		 *
 		 * SpringApplicationRunListener作用：
 		 * 		Listener for the {@link SpringApplication} {@code run} method.
@@ -340,18 +359,28 @@ public class SpringApplication {
 		 */
 		SpringApplicationRunListeners listeners = getRunListeners(args);
 		/**
-		 * 发送 starting 事件
+		 * 发送 starting 事件 (由 SpringApplicationRunListener 来发出 starting 消息):
 		 * 		触发时机：Called immediately when the run method has first started. Can be used for very early initialization.
 		 */
 		listeners.starting();
 		try {
+			/**
+			 * 这两步：
+			 * 		创建参数，并配置当前 SpringBoot 应用将要使用的 Environment, 完成之后，依然由 SpringApplicationRunListener 来发出 environmentPrepared 消息
+			 */
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
+
+
 			configureIgnoreBeanInfo(environment);
 			/**
 			 * 打印 banner
 			 */
 			Banner printedBanner = printBanner(environment);
+
+			/**
+			 * 创建 ApplicationContext (即创建 IOC 容器)
+			 */
 			context = createApplicationContext();
 			/**
 			 * {@link SpringFactoriesLoader}加载key=org.springframework.boot.SpringBootExceptionReporter, 异常打印器
@@ -361,6 +390,8 @@ public class SpringApplication {
 			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
 			/**
 			 * 重要！！！
+			 * 刷新容器 (完成IoC容器可用的最后一步)
+			 * 		- {@link AbstractApplicationContext#refresh()}
 			 */
 			refreshContext(context);
 			afterRefresh(context, applicationArguments);
@@ -371,12 +402,13 @@ public class SpringApplication {
 
 			/**
 			 * 发送 started 事件
+			 * 		由 SpringApplicationRunListener 来发出 started 消息
 			 * 		触发时机：The context has been refreshed and the application has started but
-			 * 	 	{@link CommandLineRunner CommandLineRunners} and {@link ApplicationRunner ApplicationRunners} have not been called.
+			 * 	 	注意：此时{@link CommandLineRunner CommandLineRunners} and {@link ApplicationRunner ApplicationRunners} have not been called.
 			 */
 			listeners.started(context);
 			/**
-			 * 调用：[ApplicationRunner & CommandLineRunner]
+			 * 调用容器中所有的：{@link CommandLineRunner}s 和 {@link ApplicationRunner}s
 			 */
 			callRunners(context, applicationArguments);
 		}
@@ -388,9 +420,10 @@ public class SpringApplication {
 		try {
 			/**
 			 * 发送 running 事件
-			 * 		触发时机：Called immediately before the run method finishes, when the application context has
-			 * 	 	been refreshed and all {@link CommandLineRunner CommandLineRunners} and
-			 * 	 	{@link ApplicationRunner ApplicationRunners} have been called.
+			 * 		由 SpringApplicationRunListener 来发出 running 消息，告知程序已运行起来了
+			 * 		触发时机：
+			 * 			Called immediately before the run method finishes, when the application context has
+			 * 	 		been refreshed and all {@link CommandLineRunner CommandLineRunners} and {@link ApplicationRunner ApplicationRunners} have been called.
 			 */
 			listeners.running(context);
 		}
@@ -408,7 +441,7 @@ public class SpringApplication {
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
 		/**
-		 * 发送 environmentPrepared 事件：
+		 * 发送 environmentPrepared 事件 (由 SpringApplicationRunListener 来发出 environmentPrepared 消息)：
 		 * 		触发时机：Called once the environment has been prepared, but before the {@link ApplicationContext} has been created.
 		 */
 		listeners.environmentPrepared(environment);
@@ -432,14 +465,27 @@ public class SpringApplication {
 		}
 	}
 
+	// 初始化 ApplicationContext，并设置 Environment，加载相关配置等
 	private void prepareContext(ConfigurableApplicationContext context, ConfigurableEnvironment environment,
 			SpringApplicationRunListeners listeners, ApplicationArguments applicationArguments, Banner printedBanner) {
+		/**
+		 * 设置 Environment
+		 */
 		context.setEnvironment(environment);
+		/**
+		 * 对{@link ApplicationContext}应用任何相关的后置处理(post processing)
+		 */
 		postProcessApplicationContext(context);
+
+		/**
+		 * 在容器刷新之前, 对 IOC 容器(ConfigurableApplicationContext) 应用任何的 {@link ApplicationContextInitializer}s,
+		 * 即用Set<ApplicationContextInitializer>集合中的每一个初始化器对ioc容器进行初始化操作
+		 */
 		applyInitializers(context);
 
 		/**
-		 * 发送 contextPrepared 事件
+		 * 发送 contextPrepared 事件:
+		 * 		由 SpringApplicationRunListener 来发出 contextPrepared 消息，告知SpringBoot 应用使用的 ApplicationContext 已准备OK
 		 * 		触发时机：Called once the {@link ApplicationContext} has been created and prepared, but before sources have been loaded.
 		 */
 		listeners.contextPrepared(context);
@@ -465,7 +511,8 @@ public class SpringApplication {
 		Assert.notEmpty(sources, "Sources must not be empty");
 		load(context, sources.toArray(new Object[0]));
 		/**
-		 * 发送contextLoaded事件
+		 * 发送contextLoaded事件:
+		 * 		将各种 beans 装载入 ApplicationContext，继续由 SpringApplicationRunListener 来发出 contextLoaded 消息，告知 SpringBoot 应用使用的 ApplicationContext 已装填OK
 		 * 		触发时机：Called once the application context has been loaded but before it has been refreshed.
 		 */
 		listeners.contextLoaded(context);
@@ -503,11 +550,11 @@ public class SpringApplication {
 		// Use names and ensure unique to protect against duplicates
 		/**
 		 * SpringFactoriesLoader.loadFactoryNames(type, classLoader):
-		 * 		- 这一步会将classpath下的所有src\main\resources\META-INF\spring.factories中的key/value加载到map缓存，返回指定key的值：权限定类名(Set<String>)
+		 * 		- 这一步会将classpath下的所有src\main\resources\META-INF\spring.factories中的key/value加载到map缓存，返回指定key的值(ApplicationContextInitializer)的全限定类名(Set<String>)
 		 */
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
 		/**
-		 * 这一步会将获取到的全限定类名(String)Set集合，通过反射实例化为相应的对象
+		 * 这一步会将获取到的全限定类名(String)Set集合，通过反射实例化为相应的对象, 即实例化所有的 ApplicationContextInitializer
 		 */
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
 		/**
@@ -1280,6 +1327,10 @@ public class SpringApplication {
 	 * Returns read-only ordered Set of the {@link ApplicationContextInitializer}s that
 	 * will be applied to the Spring {@link ApplicationContext}.
 	 * @return the initializers
+	 */
+
+	/**
+	 * @return : 返回只读的，已经排序过的，之前步骤中，从spring.factories 文件中实例化的 Set<ApplicationContextInitializer> 集合
 	 */
 	public Set<ApplicationContextInitializer<?>> getInitializers() {
 		return asUnmodifiableOrderedSet(this.initializers);

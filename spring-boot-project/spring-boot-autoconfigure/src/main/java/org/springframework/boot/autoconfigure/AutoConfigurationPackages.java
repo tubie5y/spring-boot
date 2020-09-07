@@ -119,6 +119,10 @@ public abstract class AutoConfigurationPackages {
 	 */
 	static class Registrar implements ImportBeanDefinitionRegistrar, DeterminableImports {
 
+		/**
+		 * 总体就是注册当前主程序类的同级以及子级的包中的符合条件的Bean的定义
+		 * 		- new PackageImport(metadata).getPackageName()，这一步，它其实返回了当前主程序类的同级以及子级的包组件
+		 */
 		@Override
 		public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
 			register(registry, new PackageImports(metadata).getPackageNames().toArray(new String[0]));

@@ -48,10 +48,18 @@ import org.springframework.data.repository.Repository;
  * @author Andy Wilkinson
  * @since 1.2.0
  */
+
+/**
+ * 注解 @SpringBootApplication 实际上是SpringBoot提供的一个复合注解, 等价于3个注解：@Configuration && @EnableAutoConfiguration && @ComponentScan
+ * 其中最重要的三个注解分别是(如果我们不怕麻烦，在 SpringBoot 应用的启动类上用这个三个注解代替@SpringBootApplication 注解发现也是没问题的)：
+ * 		1. {@link SpringBootConfiguration: @SpringBootConfiguration}: (详见源码)，该注解源码中有 @Configuration 注解
+ * 		2. {@link EnableAutoConfiguration: @EnableAutoConfiguration}: (详见源码)
+ * 		3. @ComponentScan
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Documented
-@Inherited
+@Documented // 表明这个注解应该被javadoc记录
+@Inherited // 子类可以继承该注解
 @SpringBootConfiguration
 // 开启 Spring 的自动装配功能
 @EnableAutoConfiguration

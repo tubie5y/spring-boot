@@ -77,14 +77,23 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  */
 
 /**
- * @EnableAutoConfiguration: 开启 Spring 的自动装配功能
+ * 复合注解@EnableAutoConfiguration：
+ * 		- 借助 @Import注解，使用 {@link SpringFactoriesLoader} 从 ClassPath下扫描所有的 META-INF/spring.factories 配置文件中的 XXXAutoConfiguration 自动配置类, 并加载到 IoC 容器中
+ * 		- spring.factories => key = "org.springframework.boot.autoconfigure.EnableAutoConfiguration"
+ * 		- 图形示意：src-debug/image/@EnableAutoConfiguration 幕后的组件调用关系.jpg
  *
+ *
+ * 在spring框架中就提供了各种以@Enable开头的注解，如下； @EnableAutoConfiguration的理念和做事方式其实一脉相承, 简单概括一下就是，借助@Import的支持，收集和注册特定场景相关的bean定义。　　
+ * 	- @EnableCaching:
+ * 	- @EnableScheduling: 是通过@Import将Spring调度框架相关的bean定义都加载到IoC容器【定时任务、时间调度任务】
+ * 	- @EnableMBeanExport: 是通过@Import将JMX相关的bean定义加载到IoC容器【监控JVM运行时状态】
+ * 	- @EnableAutoConfiguration: 也是借助@Import的帮助，将所有符合自动配置条件的bean定义加载到IoC容器。
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-@AutoConfigurationPackage
+@AutoConfigurationPackage // 注册当前主程序类的同级以及子级目录为扫描的包
 @Import(AutoConfigurationImportSelector.class)
 public @interface EnableAutoConfiguration {
 

@@ -40,6 +40,11 @@ import org.springframework.core.annotation.AliasFor;
  * @author Andy Wilkinson
  * @since 1.4.0
  */
+
+/**
+ * 注解@SpringBootConfiguration 来源于 @Configuration，二者功能都是将当前类标注为配置类，并将当前类里以 @Bean 注解标记的方法的实例注入到srping容器中，实例名即为方法名。
+ *
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
