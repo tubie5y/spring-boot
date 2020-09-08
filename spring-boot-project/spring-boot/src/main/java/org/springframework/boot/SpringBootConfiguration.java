@@ -42,8 +42,8 @@ import org.springframework.core.annotation.AliasFor;
  */
 
 /**
- * 注解@SpringBootConfiguration 来源于 @Configuration，二者功能都是将当前类标注为配置类，并将当前类里以 @Bean 注解标记的方法的实例注入到srping容器中，实例名即为方法名。
- *
+ * SpringBootConfiguration注解和Spring的@Configuration注解作用一样都是将当前类标注为配置类，
+ * 并会将当前类内声明的一个或多个以@Bean注解标记的方法的实例纳入到spring容器中，bean name即为方法名。
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

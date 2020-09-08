@@ -43,16 +43,22 @@ public class AutoConfigurationExcludeFilter implements TypeFilter, BeanClassLoad
 		this.beanClassLoader = beanClassLoader;
 	}
 
+	/**
+	 * 只加载 [@Configuration 标注的类 && 该类是在 spring.factory 中配置的自动配置类：EnableAutoConfiguration] ,
+	 * 即只加载spring.factory 中配置的 EnableAutoConfiguration 的实现类，并且该类要被 @Configuration 注解标注
+	 */
 	@Override
 	public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory)
 			throws IOException {
 		return isConfiguration(metadataReader) && isAutoConfiguration(metadataReader);
 	}
 
+	//该类是否是带有Configuration注解的配置类
 	private boolean isConfiguration(MetadataReader metadataReader) {
 		return metadataReader.getAnnotationMetadata().isAnnotated(Configuration.class.getName());
 	}
 
+	//该类是否为spring.factory配置的自动配置类：EnableAutoConfiguration
 	private boolean isAutoConfiguration(MetadataReader metadataReader) {
 		return getAutoConfigurations().contains(metadataReader.getClassMetadata().getClassName());
 	}

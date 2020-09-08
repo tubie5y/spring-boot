@@ -59,10 +59,12 @@ import org.springframework.data.repository.Repository;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented // 表明这个注解应该被javadoc记录
-@Inherited // 子类可以继承该注解
-@SpringBootConfiguration
+@Inherited // 这个注解的意思是这个注解所在的类的子类可以继承这个注解
+@SpringBootConfiguration // 这个注解的意思是使用SpringBootConfiguration这个注解相当用使用@Configuration这个注解
 // 开启 Spring 的自动装配功能
 @EnableAutoConfiguration
+
+// TODO: 不加载 spring.factory 中配置的被 @Configuration 注解标注的 EnableAutoConfiguration 的实现类，因为这些实现类已经在 @EnableAutoConfiguration 中加载过了，需要验证
 @ComponentScan(excludeFilters = { @Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
 		@Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) })
 public @interface SpringBootApplication {

@@ -78,8 +78,7 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
 
 /**
  * 复合注解@EnableAutoConfiguration：
- * 		- 借助 @Import注解，使用 {@link SpringFactoriesLoader} 从 ClassPath下扫描所有的 META-INF/spring.factories 配置文件中的 XXXAutoConfiguration 自动配置类, 并加载到 IoC 容器中
- * 		- spring.factories => key = "org.springframework.boot.autoconfigure.EnableAutoConfiguration"
+ * 		- 借助 @Import注解，使用 {@link SpringFactoriesLoader} 从 ClassPath下扫描所有的 META-INF/spring.factories 配置文件中的 EnableAutoConfiguration 自动配置类, 并加载到 IoC 容器中
  * 		- 图形示意：src-debug/image/@EnableAutoConfiguration 幕后的组件调用关系.jpg
  *
  *

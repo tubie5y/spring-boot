@@ -58,6 +58,9 @@ public class TypeExcludeFilter implements TypeFilter, BeanFactoryAware {
 		this.beanFactory = beanFactory;
 	}
 
+	/**
+	 * TODO: ?
+	 */
 	@Override
 	public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory)
 			throws IOException {
