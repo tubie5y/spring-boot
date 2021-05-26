@@ -1,3 +1,18 @@
+// TODO: add: buildscript块
+buildscript {
+	repositories {
+		maven { url "https://maven.aliyun.com/repository/central" }
+		maven { url "https://maven.aliyun.com/repository/public" }
+		maven { url "https://maven.aliyun.com/repository/google" }
+		maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
+		maven { url "https://maven.aliyun.com/repository/spring" }
+		maven { url "https://maven.aliyun.com/repository/spring-plugin" }
+		maven { url "https://maven.aliyun.com/repository/grails-core" }
+		maven { url "https://maven.aliyun.com/repository/apache-snapshots" }
+	}
+}
+
+
 plugins {
 	id "org.jetbrains.kotlin.jvm" apply false // https://youtrack.jetbrains.com/issue/KT-30276
 	id "io.spring.nohttp" version "0.0.6.RELEASE"
@@ -23,6 +38,17 @@ allprojects {
 	group "org.springframework.boot"
 
 	repositories {
+		// TODO: add: 阿里云镜像
+		maven { url "https://maven.aliyun.com/repository/central" }
+		maven { url "https://maven.aliyun.com/repository/public" }
+		maven { url "https://maven.aliyun.com/repository/google" }
+		maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
+		maven { url "https://maven.aliyun.com/repository/spring" }
+		maven { url "https://maven.aliyun.com/repository/spring-plugin" }
+		maven { url "https://maven.aliyun.com/repository/grails-core" }
+		maven { url "https://maven.aliyun.com/repository/apache-snapshots" }
+
+
 		mavenCentral()
 		if (version.contains('-')) {
 			maven { url "https://repo.spring.io/milestone" }
